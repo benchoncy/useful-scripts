@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+Help(){
+	# Show Help
+	echo "Automatically commit & sync changes in git repositoy."
+	echo
+	echo "Syntax: sync-git-repo [-option] <path>"
+	echo
+	echo "options:"
+	echo "	-h		Print this help message"
+	echo
+}
+
+Run(){
+	TARGET_GIT_DIR="$1"
+	echo $TARGET_GIT_DIR
+	echo "Begining sync..."
+
+	# Move to notable directory
+	if cd $TARGET_GIT_DIR; then
+		echo "Working from directory '`pwd`'..."
+	else
+		echo "Error: Issues arose changing to directory '$TARGET_GIT_DIR'"
+		echo "Exiting..."
+		exit 1
+	fi
+
+	# If changes exist, commit changes
+	if [[ `git status --porcelain` ]]; then
+		echo "Changes found..."
+		TIMESTAMP=`date +%Y-%m-%d_%H:%M:%S`
+		echo "Commit to be stamped $TIMESTAMP..."
+		git add .
+		git commit -q -m "Auto commit - $TIMESTAMP"
+		echo "Changes commited, commit `git rev-parse --short HEAD` created..."
+	else
+		echo "No changes detected..."
+	fi
+
+	# Sync with remote
+	echo "Syncing repository..."
+	if `git pull -q`; then
+		echo "Pull successful."
+	else
+		echo "Error: Something went wrong during 'git pull'..."
+		echo "Exiting..."
+		exit 1
+	fi
+	if `git push -q`; then
+		echo "Push successful."
+	else
+		echo "Error: Sync unsuccessful!"
+		echo "Something went wrong during 'git push'..."
+		exit 1
+	fi
+
+	echo "Complete."
+}
+
+while getopts "h:" opt; do
+	case $opt in
+      	h) # display Help
+			Help
+			exit 0;;
+		\?) # incorrect option
+        	echo "Error: Invalid option $opt"
+        	exit 2;;
+	esac
+done
+
+EXPECTED_ARGS=1
+
+if [[ $# -eq 0 ]]; then
+    echo "Error: No arguments supplied"
+	exit 2
+elif [[ $# -eq $EXPECTED_ARGS ]]; then
+	Run "$@"
+else
+	echo "Error: Incorrect number of arguments supplied. Expected $EXPECTED_ARGS, recieved $#"
+	exit 2
+fi
